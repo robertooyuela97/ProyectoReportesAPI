@@ -1,6 +1,6 @@
 import os 
 import pyodbc
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, render_template # 🟢 IMPORTAR render_template
 from flask_cors import CORS
 from datetime import date
 import json
@@ -68,9 +68,17 @@ def ejecutar_stored_procedure(sp_name, params=None):
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
-    # ⚠️ Esto sirve el archivo index.html ubicado en la raíz del proyecto,
-    # el cual usa url_for() para referenciar los archivos estáticos en /static/.
-    return send_file('index.html') 
+    # 🟢 CAMBIO CRÍTICO: Usar render_template en lugar de send_file.
+    # Esto fuerza a Flask a procesar index.html como una plantilla Jinja, 
+    # lo cual es necesario para que {{ url_for(...) }} se ejecute correctamente.
+    # Asegúrate de que index.html esté en una carpeta llamada 'templates/' o en la raíz.
+    try:
+        # Si index.html está en la raíz, Flask lo encontrará. 
+        # Si está en 'templates/', usa render_template('index.html')
+        return render_template('index.html') 
+    except Exception as e:
+        # Esto ayudará a diagnosticar si Flask no puede encontrar el index.html
+        return f"Error al renderizar index.html: {str(e)}", 500
 # ---------------------------------------------
 
 
