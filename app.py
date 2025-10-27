@@ -22,16 +22,14 @@ DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
 USERNAME = os.environ.get('DB_USER', 'grupo2')
 PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
 
-# 🔴 ÚLTIMO INTENTO DE DRIVER: Usamos un driver común en Linux.
-# Si el error persiste, la cadena de conexión de abajo es la que debe
-# modificarse para no incluir 'DRIVER=' y sólo incluir el resto de los parámetros.
-# Mantenemos este driver para que el mensaje de error de abajo no aparezca,
-# pero en el error se verá el driver que falta.
-DRIVER_COMPATIBLE = '{ODBC Driver 13 for SQL Server}' 
+# 🔴 ELIMINACIÓN TOTAL DEL DRIVER (Estrategia más robusta para FreeTDS/Linux)
+# Eliminamos la variable DRIVER_COMPATIBLE. pyodbc intentará usar el driver 
+# preconfigurado por Azure (que suele ser FreeTDS o el driver 17, si está instalado).
 
-# 🟢 Cadena de conexión estandarizada
+# 🟢 Cadena de conexión estandarizada (sin el parámetro DRIVER)
+# Agregamos el puerto 1433 de forma explícita en el servidor, solo para asegurar.
 CONNECTION_STRING = (
-    f'DRIVER={DRIVER_COMPATIBLE};SERVER={SERVER};DATABASE={DATABASE};'
+    f'SERVER={SERVER},1433;DATABASE={DATABASE};'
     f'UID={USERNAME};PWD={PASSWORD};'
     f'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
 )
@@ -41,8 +39,8 @@ def ejecutar_stored_procedure(sp_name, params=None):
     """Funcion generica para ejecutar un PS y devolver los datos."""
     conn = None
     try:
-        # Esto nos confirmará en los logs de Azure qué driver está intentando usar.
-        print(f"DEBUG_DRIVER: Usando driver {DRIVER_COMPATIBLE}")
+        # Esto nos confirmará en los logs de Azure que se omitió el driver.
+        print("DEBUG_DRIVER: Conectando SIN especificar DRIVER (usando FreeTDS preconfigurado).")
         
         conn = pyodbc.connect(CONNECTION_STRING)
         cursor = conn.cursor()
@@ -64,11 +62,12 @@ def ejecutar_stored_procedure(sp_name, params=None):
     except pyodbc.Error as ex:
         error_msg = str(ex)
         
-        # 🔴 Mantenemos el error generalizado aquí, forzando un mensaje útil.
-        if 'Driver' in error_msg or 'ODBC' in error_msg:
-             message = "Error de DRIVER ODBC. Azure no tiene el driver instalado. Solución: Verificar el despliegue de app.py con FreeTDS."
-        elif 'Login failed' in error_msg:
-             message = "Error de FIREWALL o CREDENCIALES."
+        # 🔴 Actualizamos los mensajes de error
+        if 'Login failed' in error_msg:
+             message = "Error de CONEXIÓN: FIREWALL de Azure SQL no permite la IP de su App Service o las CREDENCIALES son incorrectas."
+        elif 'Driver' in error_msg or 'ODBC' in error_msg:
+             # Este error es menos probable ahora, pero si ocurre, es un problema de configuración de Azure
+             message = "Error de DRIVER ODBC. La instalación de FreeTDS en Azure App Service falló."
         else:
              message = f"Error de SQL desconocido: {error_msg}"
             
