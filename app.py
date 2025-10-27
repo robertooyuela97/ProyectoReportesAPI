@@ -1,5 +1,6 @@
+import os # 👈 NUEVA IMPORTACIÓN
 import pyodbc
-from flask import Flask, jsonify, request, send_file # ⚠️ send_file añadido
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from datetime import date
 import json
@@ -7,11 +8,13 @@ import json
 app = Flask(__name__)
 CORS(app)
 
-# --- Configuracion de Azure SQL ---
-SERVER = 'grupo2-bd2-ergj.database.windows.net'
-DATABASE = 'ProyectoContable_G2BD2'
-USERNAME = 'grupo2'
-PASSWORD = 'Grupobd.2' 
+# --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
+# En un ambiente Azure, estas variables se leen del App Service.
+# En local, si no las defines, usa las credenciales hardcodeadas (menos seguro).
+SERVER = os.environ.get('DB_SERVER', 'grupo2-bd2-ergj.database.windows.net')
+DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
+USERNAME = os.environ.get('DB_USER', 'grupo2')
+PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
 DRIVER = '{ODBC Driver 17 for SQL Server}' 
 
 CONNECTION_STRING = (
@@ -19,6 +22,7 @@ CONNECTION_STRING = (
     f'UID={USERNAME};PWD={PASSWORD};'
     f'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
 )
+# -------------------------------------------------------------
 
 def ejecutar_stored_procedure(sp_name, params=None):
     """Funcion generica para ejecutar un PS y devolver los datos."""
@@ -60,9 +64,10 @@ def ejecutar_stored_procedure(sp_name, params=None):
             conn.close()
 
 
-# --- RUTA RAÍZ (NUEVA): SOLUCIONA ERROR 404 ---
+# --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
+    # ⚠️ Esto sirve el archivo index.html ubicado en la raíz del proyecto.
     return send_file('index.html') 
 # ---------------------------------------------
 
@@ -92,7 +97,8 @@ def balance_comprobacion_api():
 # --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
-    resultado = ejecutar_stored_procedure("SP_Generar_Estado Resultados", params=[1])
+    # ⚠️ CUIDADO: Revisa el nombre exacto de tu PS en SQL (sin espacios si es posible)
+    resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
     
     if resultado['status'] == 'error':
         return jsonify(resultado), 500
@@ -118,4 +124,4 @@ def movimientos_cuentas_api():
     
     return jsonify(resultado)
 
-# ⚠️ La línea 'if __name__ == "__main__": app.run(debug=True)' fue eliminada para Gunicorn.
+# Nota: La línea 'if __name__ == "__main__": app.run(debug=True)' es eliminada para Gunicorn.
