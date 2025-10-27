@@ -6,6 +6,7 @@ from datetime import date
 import json
 
 # 🟢 CONFIGURACIÓN DE RUTAS Y APP
+# Especificar la ruta absoluta para las plantillas
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 
 app = Flask(
@@ -16,16 +17,16 @@ app = Flask(
 )
 CORS(app)
 
-# --- Configuracion de Azure SQL (VOLVEMOS A LA CONFIGURACIÓN ORIGINAL) ---
+# --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
 SERVER = os.environ.get('DB_SERVER', 'grupo2-bd2-ergj.database.windows.net')
 DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
 USERNAME = os.environ.get('DB_USER', 'grupo2')
 PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
-# 🟢 ESTE ES SU DRIVER ORIGINAL QUE SOLÍA FUNCIONAR EN AZURE
-DRIVER_COMPATIBLE = '{ODBC Driver 17 for SQL Server}' 
 
+# 🟢 CADENA DE CONEXIÓN MÁS GENÉRICA PARA LINUX (OMITE DRIVER=)
+# Esto obliga a pyodbc a usar el driver preconfigurado (FreeTDS)
 CONNECTION_STRING = (
-    f'DRIVER={DRIVER_COMPATIBLE};SERVER={SERVER};DATABASE={DATABASE};'
+    f'SERVER={SERVER},1433;DATABASE={DATABASE};'
     f'UID={USERNAME};PWD={PASSWORD};'
     f'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
 )
@@ -38,15 +39,10 @@ def ejecutar_stored_procedure(sp_name, params=None):
         conn = pyodbc.connect(CONNECTION_STRING)
         cursor = conn.cursor()
         
-        # Preparar la llamada al PS (ej: {CALL SP_Generar_BalanceFinanciero(?)})
         placeholders = ', '.join('?' for _ in params) if params else ''
         sp_call = f"{{CALL {sp_name}({placeholders})}}"
         
-        # 🟢 IMPORTANTE: Si el PS tiene errores de sintaxis (como la tabla 'Resultados' que ya corregimos)
-        # la ejecución aquí podría fallar inmediatamente o devolver un error.
         cursor.execute(sp_call, params or [])
-        
-        # Si la ejecución es exitosa, procesamos los resultados
         
         # 1. Obtener los nombres de las columnas
         column_names = [column[0] for column in cursor.description]
@@ -54,22 +50,21 @@ def ejecutar_stored_procedure(sp_name, params=None):
         # 2. Mapear los resultados
         reporte_data = []
         for row in cursor.fetchall():
-            # Convertir todos los tipos de datos a cadenas (incluyendo fechas)
             processed_row = [str(item) if item is not None else item for item in row]
             reporte_data.append(dict(zip(column_names, processed_row)))
 
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
-        # 🔴 Manejo de error específico de SQL (Firewall/Credenciales/Driver)
+        # 🔴 Manejo de error actualizado para Azure
         error_msg = str(ex)
         
-        if 'Login failed' in error_msg or 'firewall' in error_msg:
-            message = "Error de CONEXIÓN: Revisar FIREWALL o CREDENCIALES."
-        elif 'Driver' in error_msg or 'ODBC' in error_msg:
-             message = f"Error de DRIVER ODBC: El driver {DRIVER_COMPATIBLE} no se encuentra en Azure."
+        if 'Login failed' in error_msg or 'firewall' in error_msg or 'Access is denied' in error_msg:
+             # Este es un error de CONEXIÓN/AUTENTICACIÓN
+             message = "Error de CONEXIÓN: Revisar FIREWALL de Azure SQL o CREDENCIALES."
         else:
-            message = f"Error de SQL desconocido: {error_msg}"
+             # Este sigue siendo el error del driver si falla al inicializar pyodbc
+             message = f"Error CRÍTICO de SQL: DRIVER ODBC. Azure no tiene el driver instalado o falla la conexión. Detalle: {error_msg}"
             
         print(f"CRITICAL ERROR: {message} -> Detalles: {error_msg}") 
         return {"status": "error", "message": message}
@@ -82,7 +77,6 @@ def ejecutar_stored_procedure(sp_name, params=None):
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
-    # ⚠️ Esto es necesario para Azure.
     return render_template('index.html') 
 # ---------------------------------------------
 
@@ -107,6 +101,7 @@ def balance_comprobacion_api():
 # --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
+    # ⚠️ Asumiendo que usted ya ejecutó el script SQL que corrige el ISV al 15%
     resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
     if resultado['status'] == 'error':
         return jsonify(resultado), 500
