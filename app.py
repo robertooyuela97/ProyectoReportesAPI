@@ -16,20 +16,16 @@ app = Flask(
 )
 CORS(app)
 
-# --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
+# --- Configuracion de Azure SQL (VOLVEMOS A LA CONFIGURACIÓN ORIGINAL) ---
 SERVER = os.environ.get('DB_SERVER', 'grupo2-bd2-ergj.database.windows.net')
 DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
 USERNAME = os.environ.get('DB_USER', 'grupo2')
 PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
+# 🟢 ESTE ES SU DRIVER ORIGINAL QUE SOLÍA FUNCIONAR EN AZURE
+DRIVER_COMPATIBLE = '{ODBC Driver 17 for SQL Server}' 
 
-# 🔴 ELIMINACIÓN TOTAL DEL DRIVER (Estrategia más robusta para FreeTDS/Linux)
-# Eliminamos la variable DRIVER_COMPATIBLE. pyodbc intentará usar el driver 
-# preconfigurado por Azure (que suele ser FreeTDS o el driver 17, si está instalado).
-
-# 🟢 Cadena de conexión estandarizada (sin el parámetro DRIVER)
-# Agregamos el puerto 1433 de forma explícita en el servidor, solo para asegurar.
 CONNECTION_STRING = (
-    f'SERVER={SERVER},1433;DATABASE={DATABASE};'
+    f'DRIVER={DRIVER_COMPATIBLE};SERVER={SERVER};DATABASE={DATABASE};'
     f'UID={USERNAME};PWD={PASSWORD};'
     f'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
 )
@@ -39,37 +35,41 @@ def ejecutar_stored_procedure(sp_name, params=None):
     """Funcion generica para ejecutar un PS y devolver los datos."""
     conn = None
     try:
-        # Esto nos confirmará en los logs de Azure que se omitió el driver.
-        print("DEBUG_DRIVER: Conectando SIN especificar DRIVER (usando FreeTDS preconfigurado).")
-        
         conn = pyodbc.connect(CONNECTION_STRING)
         cursor = conn.cursor()
         
+        # Preparar la llamada al PS (ej: {CALL SP_Generar_BalanceFinanciero(?)})
         placeholders = ', '.join('?' for _ in params) if params else ''
         sp_call = f"{{CALL {sp_name}({placeholders})}}"
         
+        # 🟢 IMPORTANTE: Si el PS tiene errores de sintaxis (como la tabla 'Resultados' que ya corregimos)
+        # la ejecución aquí podría fallar inmediatamente o devolver un error.
         cursor.execute(sp_call, params or [])
         
+        # Si la ejecución es exitosa, procesamos los resultados
+        
+        # 1. Obtener los nombres de las columnas
         column_names = [column[0] for column in cursor.description]
         
+        # 2. Mapear los resultados
         reporte_data = []
         for row in cursor.fetchall():
+            # Convertir todos los tipos de datos a cadenas (incluyendo fechas)
             processed_row = [str(item) if item is not None else item for item in row]
             reporte_data.append(dict(zip(column_names, processed_row)))
 
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
+        # 🔴 Manejo de error específico de SQL (Firewall/Credenciales/Driver)
         error_msg = str(ex)
         
-        # 🔴 Actualizamos los mensajes de error
-        if 'Login failed' in error_msg:
-             message = "Error de CONEXIÓN: FIREWALL de Azure SQL no permite la IP de su App Service o las CREDENCIALES son incorrectas."
+        if 'Login failed' in error_msg or 'firewall' in error_msg:
+            message = "Error de CONEXIÓN: Revisar FIREWALL o CREDENCIALES."
         elif 'Driver' in error_msg or 'ODBC' in error_msg:
-             # Este error es menos probable ahora, pero si ocurre, es un problema de configuración de Azure
-             message = "Error de DRIVER ODBC. La instalación de FreeTDS en Azure App Service falló."
+             message = f"Error de DRIVER ODBC: El driver {DRIVER_COMPATIBLE} no se encuentra en Azure."
         else:
-             message = f"Error de SQL desconocido: {error_msg}"
+            message = f"Error de SQL desconocido: {error_msg}"
             
         print(f"CRITICAL ERROR: {message} -> Detalles: {error_msg}") 
         return {"status": "error", "message": message}
@@ -82,6 +82,7 @@ def ejecutar_stored_procedure(sp_name, params=None):
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
+    # ⚠️ Esto es necesario para Azure.
     return render_template('index.html') 
 # ---------------------------------------------
 
@@ -131,5 +132,4 @@ def movimientos_cuentas_api():
 
 
 if __name__ == '__main__':
-    # Usar puerto 8000 en el entorno local
     app.run(host='0.0.0.0', port=8000, debug=True)
