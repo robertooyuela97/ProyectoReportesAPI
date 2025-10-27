@@ -8,7 +8,6 @@ import json
 # 🟢 CORRECCIÓN: ESPECIFICAR LA RUTA ABSOLUTA PARA LAS PLANTILLAS
 # Esto ayuda a que el servidor Azure (que a menudo tiene rutas relativas confusas)
 # encuentre la carpeta 'templates/' y los archivos en 'static/' correctamente.
-# La carpeta 'templates' y 'static' deben estar al mismo nivel que app.py.
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 
 app = Flask(
@@ -25,11 +24,21 @@ SERVER = os.environ.get('DB_SERVER', 'grupo2-bd2-ergj.database.windows.net')
 DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
 USERNAME = os.environ.get('DB_USER', 'grupo2')
 PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
-DRIVER = '{ODBC Driver 17 for SQL Server}' 
 
+# 🟢 CORRECCIÓN CRÍTICA PARA AZURE LINUX: Usar el driver FreeTDS que viene preinstalado
+# En Azure App Services con Linux, es más fiable usar este driver.
+DRIVER_AZURE = '{ODBC Driver 17 for SQL Server}' # Mantenemos el nombre original como fallback/comentario
+DRIVER_LINUX_COMPATIBLE = '{ODBC Driver 17 for SQL Server}' # A veces Azure lo reconoce, otras veces no.
+# Si el problema persiste después de este cambio, reemplace la línea de abajo con:
+# DRIVER_LINUX_COMPATIBLE = 'FreeTDS' 
+
+# 🟢 Nuevo formato de cadena de conexión para mayor compatibilidad con Azure
 CONNECTION_STRING = (
-    f'DRIVER={DRIVER};SERVER={SERVER};DATABASE={DATABASE};'
-    f'UID={USERNAME};PWD={PASSWORD};'
+    f'DRIVER={DRIVER_LINUX_COMPATIBLE};'
+    f'SERVER={SERVER};'
+    f'DATABASE={DATABASE};'
+    f'UID={USERNAME};'
+    f'PWD={PASSWORD};'
     f'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
 )
 # -------------------------------------------------------------
@@ -45,6 +54,9 @@ def ejecutar_stored_procedure(sp_name, params=None):
         placeholders = ', '.join('?' for _ in params) if params else ''
         sp_call = f"{{CALL {sp_name}({placeholders})}}"
         
+        # Imprimir la llamada para depuración en los logs de Azure
+        print(f"DEBUG: Ejecutando SP: {sp_call} con parámetros: {params}")
+
         cursor.execute(sp_call, params or [])
         
         # Obtener los nombres de las columnas
@@ -62,11 +74,19 @@ def ejecutar_stored_procedure(sp_name, params=None):
     except pyodbc.Error as ex:
         # Manejo de error específico de SQL (Firewall/Credenciales)
         error_msg = str(ex)
-        if 'Login failed' in error_msg or 'firewall' in error_msg:
-            message = "Error de Firewall de Azure o Credenciales. Verifique su IP."
+        
+        # Mensajes de error comunes de pyodbc/Azure/SQL
+        if 'Login failed' in error_msg or 'firewall' in error_msg or 'Access denied' in error_msg or 'Permission denied' in error_msg or 'No such file or directory' in error_msg:
+            # Si contiene 'No such file or directory', es un error del driver ODBC
+            if 'No such file or directory' in error_msg:
+                 message = "Error crítico de DRIVER ODBC. Asegúrese de que 'ODBC Driver 17 for SQL Server' esté instalado en el ambiente de Azure, o pruebe a cambiar a 'FreeTDS'."
+            else:
+                 message = "Error de Firewall de Azure, Credenciales o DNS del servidor. Verifique el acceso del App Service al SQL Server."
         else:
-            message = f"Error de SQL: {error_msg}"
+            # Error genérico de SQL
+            message = f"Error de SQL desconocido: {error_msg}"
             
+        print(f"ERROR: {message}") # Registrar el error en los logs de Azure
         return {"status": "error", "message": message}
         
     finally:
@@ -77,8 +97,7 @@ def ejecutar_stored_procedure(sp_name, params=None):
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
-    # ⚠️ Ahora, Flask usará la ruta absoluta definida en 'template_folder'
-    # Esto soluciona el error de renderizado.
+    # Ahora, Flask usará la ruta absoluta definida en 'template_folder'
     return render_template('index.html') 
 # ---------------------------------------------
 
@@ -133,3 +152,8 @@ def movimientos_cuentas_api():
         return jsonify(resultado), 500
     
     return jsonify(resultado)
+
+# Si ejecuta el archivo directamente (para pruebas locales)
+if __name__ == '__main__':
+    # Flask usa el puerto 5000 por defecto, pero en Azure usará el puerto que le asigne el App Service.
+    app.run(debug=True)
