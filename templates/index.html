@@ -5,9 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generador de Reportes Financieros (API Web)</title>
     
+    <!-- CARGA EL ARCHIVO CSS EXTERNO (debe estar en static/styles.css) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     
+    <!-- ESTILOS BÁSICOS IN-LINE (para asegurar que el navegador cargue el menú) -->
     <style>
+        /* Estilos generales del cuerpo */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 20px;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #8b0000; /* Rojo oscuro */
+            margin-bottom: 40px;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+        }
+
+        /* Estilos de tabla (para prevenir que la tabla se vea horrible si falla styles.css) */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #8b0000;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        
         /* Estilos específicos para el menú de navegación */
         .navbar {
             display: flex;
@@ -35,6 +83,10 @@
         /* Ocultar todos los contenedores de reportes por defecto */
         .report-container {
             display: none;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
         
         /* Estilos para los botones de exportación */
@@ -56,10 +108,36 @@
         .export-group button:hover {
             background-color: #5a6268;
         }
-        
-        /* 💡 Si el estilo principal no está en styles.css, deberías pegarlo aquí en el <style> */
+        .filter-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #f9f9f9;
+        }
+        .filter-group input[type="text"], .filter-group input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .filter-group button {
+            background-color: #333;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .filter-group button:hover {
+            background-color: #555;
+        }
     </style>
     
+    <!-- Librerías de exportación CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/linways/table-to-excel@v1.0.4/dist/tableToExcel.js"></script>
@@ -135,6 +213,7 @@
         </table>
     </div>
 
+    <!-- CARGA EL ARCHIVO JS EXTERNO (debe estar en static/script.js) -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
