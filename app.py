@@ -1,13 +1,22 @@
 import os 
 import pyodbc
-from flask import Flask, jsonify, request, send_file, render_template # 🟢 IMPORTAR render_template
+from flask import Flask, jsonify, request, render_template # Solo necesitamos render_template
 from flask_cors import CORS
 from datetime import date
 import json
 
-# 🟢 CORRECCIÓN: Inicialización explícita de la carpeta estática.
-# Esto asegura que Azure pueda servir los archivos dentro de /static/
-app = Flask(__name__, static_folder='static', static_url_path='/static')
+# 🟢 CORRECCIÓN: ESPECIFICAR LA RUTA ABSOLUTA PARA LAS PLANTILLAS
+# Esto ayuda a que el servidor Azure (que a menudo tiene rutas relativas confusas)
+# encuentre la carpeta 'templates/' y los archivos en 'static/' correctamente.
+# La carpeta 'templates' y 'static' deben estar al mismo nivel que app.py.
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
+
+app = Flask(
+    __name__, 
+    template_folder=template_dir, # Usar la ruta absoluta para templates
+    static_folder='static', 
+    static_url_path='/static'
+)
 CORS(app)
 
 # --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
@@ -68,17 +77,9 @@ def ejecutar_stored_procedure(sp_name, params=None):
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
-    # 🟢 CAMBIO CRÍTICO: Usar render_template en lugar de send_file.
-    # Esto fuerza a Flask a procesar index.html como una plantilla Jinja, 
-    # lo cual es necesario para que {{ url_for(...) }} se ejecute correctamente.
-    # Asegúrate de que index.html esté en una carpeta llamada 'templates/' o en la raíz.
-    try:
-        # Si index.html está en la raíz, Flask lo encontrará. 
-        # Si está en 'templates/', usa render_template('index.html')
-        return render_template('index.html') 
-    except Exception as e:
-        # Esto ayudará a diagnosticar si Flask no puede encontrar el index.html
-        return f"Error al renderizar index.html: {str(e)}", 500
+    # ⚠️ Ahora, Flask usará la ruta absoluta definida en 'template_folder'
+    # Esto soluciona el error de renderizado.
+    return render_template('index.html') 
 # ---------------------------------------------
 
 
