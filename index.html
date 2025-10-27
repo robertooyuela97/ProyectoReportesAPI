@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Reportes Financieros (API Web)</title>
+    <link rel="stylesheet" href="styles.css"> 
+    <style>
+        /* Estilos específicos para el menú de navegación */
+        .navbar {
+            display: flex;
+            justify-content: space-around;
+            background-color: #8b0000;
+            padding: 15px 0;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .navbar button {
+            background-color: transparent;
+            color: white;
+            border: 2px solid transparent;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+        }
+        .navbar button:hover, .navbar button.active {
+            background-color: #b22222;
+            border-color: white;
+            border-radius: 6px;
+        }
+        
+        /* Ocultar todos los contenedores de reportes por defecto */
+        .report-container {
+            display: none;
+        }
+        
+        /* Estilos para los botones de exportación */
+        .export-group {
+            margin-bottom: 15px; 
+            display: flex; 
+            gap: 10px;
+        }
+        .export-group button {
+            padding: 8px 15px;
+            background-color: #b22222; /* Gris para botones secundarios */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 0.9em;
+        }
+        .export-group button:hover {
+            background-color: #5a6268;
+        }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/linways/table-to-excel@v1.0.4/dist/tableToExcel.js"></script>
+</head>
+<body>
+    <h1>Reportes Contables y Financieros Consumidos desde Azure SQL</h1>
+    
+    <div class="navbar">
+        <button id="btn-bf" onclick="showReport('balance-financiero-container', 'btn-bf')">1. Balance Financiero</button>
+        <button id="btn-bc" onclick="showReport('balance-comprobacion-container', 'btn-bc')">2. Balance de Comprobación</button>
+        <button id="btn-er" onclick="showReport('estado-resultados-container', 'btn-er')">3. Estado de Resultados</button>
+        <button id="btn-mc" onclick="showReport('movimientos-cuentas-container', 'btn-mc')">4. Movimientos Cuentas</button>
+    </div>
+
+    <div id="balance-financiero-container" class="report-container">
+        <h2>1. Balance Financiero</h2>
+        <div class="export-group">
+            <button onclick="exportTableToPDF('balance-financiero-table', 'Balance Financiero')">Exportar PDF 📄</button>
+            <button onclick="exportTableToExcel('balance-financiero-table', 'Balance Financiero')">Exportar Excel 📊</button>
+        </div>
+        <p id="status-bf" class="success">Cargando reporte...</p>
+        <table id="balance-financiero-table">
+            <thead><tr><th>Concepto</th><th>Total</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="balance-comprobacion-container" class="report-container">
+        <h2>2. Balance de Comprobacion</h2>
+        <div class="export-group">
+            <button onclick="exportTableToPDF('balance-comprobacion-table', 'Balance Comprobacion')">Exportar PDF 📄</button>
+            <button onclick="exportTableToExcel('balance-comprobacion-table', 'Balance Comprobacion')">Exportar Excel 📊</button>
+        </div>
+        <p id="status-bc" class="success">Cargando reporte...</p>
+        <table id="balance-comprobacion-table">
+            <thead><tr><th>Cuenta Contable</th><th>Debe</th><th>Haber</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="estado-resultados-container" class="report-container">
+        <h2>3. Estado de Resultados</h2>
+        <div class="export-group">
+            <button onclick="exportTableToPDF('estado-resultados-table', 'Estado Resultados')">Exportar PDF 📄</button>
+            <button onclick="exportTableToExcel('estado-resultados-table', 'Estado Resultados')">Exportar Excel 📊</button>
+        </div>
+        <p id="status-er" class="success">Cargando reporte...</p>
+        <table id="estado-resultados-table">
+            <thead><tr><th>Concepto</th><th>Monto</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="movimientos-cuentas-container" class="report-container">
+        <h2>4. Movimientos de Cuentas</h2>
+        <div class="export-group">
+            <button onclick="exportTableToPDF('movimientos-cuentas-table', 'Movimientos Cuentas')">Exportar PDF 📄</button>
+            <button onclick="exportTableToExcel('movimientos-cuentas-table', 'Movimientos Cuentas')">Exportar Excel 📊</button>
+        </div>
+        <div class="filter-group">
+            <label for="cuenta">Cuenta:</label>
+            <input type="text" id="cuenta" value="Bancos">
+            <label for="inicio">Fecha Inicio:</label>
+            <input type="date" id="inicio" value="2023-01-01">
+            <label for="fin">Fecha Fin:</label>
+            <input type="date" id="fin" value="2025-12-31">
+            <button onclick="loadMovimientosCuentas(true)">Generar Reporte</button>
+        </div>
+        <p id="status-mc" class="success">Listo para generar el reporte de Movimientos.</p>
+        <table id="movimientos-cuentas-table">
+            <thead><tr><th>ID Mov.</th><th>Fecha</th><th>Detalle</th><th>Debe</th><th>Haber</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
