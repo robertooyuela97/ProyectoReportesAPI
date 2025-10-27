@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generador de Reportes Financieros (API Web)</title>
-    <link rel="stylesheet" href="styles.css"> 
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    
     <style>
         /* Estilos específicos para el menú de navegación */
         .navbar {
@@ -43,7 +45,7 @@
         }
         .export-group button {
             padding: 8px 15px;
-            background-color: #b22222; /* Gris para botones secundarios */
+            background-color: #b22222; /* Rojo oscuro para botones secundarios */
             color: white;
             border: none;
             border-radius: 4px;
@@ -54,6 +56,8 @@
         .export-group button:hover {
             background-color: #5a6268;
         }
+        
+        /* 💡 Si el estilo principal no está en styles.css, deberías pegarlo aquí en el <style> */
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -131,6 +135,6 @@
         </table>
     </div>
 
-    <script src="script.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
