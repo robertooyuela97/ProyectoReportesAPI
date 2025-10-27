@@ -1,5 +1,8 @@
 // script.js
-const API_BASE_URL = 'http://127.0.0.1:5000';
+// 🟢 CORRECCIÓN CRÍTICA: ELIMINAMOS API_BASE_URL
+// Para Azure App Service, usamos rutas relativas (/api/...)
+// Esto fuerza al navegador a llamar al mismo dominio (su URL de Azure).
+// const API_BASE_URL = 'http://127.0.0.1:5000'; // ¡Línea ELIMINADA!
 
 // Nombres de los contenedores para el manejo del menú
 const REPORT_CONTAINERS = [
@@ -43,7 +46,8 @@ async function fetchAndRenderReport(endpoint, tableId, statusId, headers) {
     statusElement.className = 'success';
     
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        // 🟢 CORRECCIÓN: Llamamos a la URL de forma RELATIVA.
+        const response = await fetch(endpoint); 
         const data = await response.json();
 
         if (data.status === 'success') {
@@ -70,11 +74,13 @@ async function fetchAndRenderReport(endpoint, tableId, statusId, headers) {
             });
 
         } else {
+            // Este error indica un problema en el lado del servidor Flask/SQL (Firewall/Credenciales)
             statusElement.textContent = `Error en el Servidor SQL: ${data.message}`;
             statusElement.className = 'error';
         }
 
     } catch (error) {
+        // Este error indica que la API de Flask no respondió (problema de ruteo/servidor apagado)
         statusElement.textContent = 'Error de conexión. ¿Está el servidor Flask corriendo?';
         statusElement.className = 'error';
     }
@@ -89,6 +95,7 @@ function loadMovimientosCuentas(isManualClick) {
     const inicio = document.getElementById('inicio').value;
     const fin = document.getElementById('fin').value;
     
+    // El endpoint ya usa la ruta relativa /api/...
     const endpoint = `/api/movimientos-cuentas?cuenta=${cuenta}&inicio=${inicio}&fin=${fin}`;
     
     // Si fue llamado por el botón, mostramos el estado de carga
@@ -123,7 +130,9 @@ function exportTableToExcel(tableId, filename) {
                 name: filename
             }
         });
-        alert(`Reporte "${filename}" exportado a Excel. ¡Revisa tus descargas!`);
+        // 🟢 CORRECCIÓN: Evitar alert(). En Azure y otros ambientes, alert() es problemático.
+        // Reemplazar con un mensaje en la consola. 
+        console.log(`Reporte "${filename}" exportado a Excel. ¡Revisa tus descargas!`);
     }
 }
 
@@ -156,7 +165,8 @@ function exportTableToPDF(tableId, filename) {
 
             // 3. Descargar el archivo
             pdf.save(`${filename}_${new Date().toLocaleDateString()}.pdf`);
-            alert(`Reporte "${filename}" exportado a PDF. ¡Revisa tus descargas!`);
+            // 🟢 CORRECCIÓN: Evitar alert(). Reemplazar con console.log.
+            console.log(`Reporte "${filename}" exportado a PDF. ¡Revisa tus descargas!`);
         });
     }
 }
@@ -168,6 +178,7 @@ function exportTableToPDF(tableId, filename) {
 
 // 1. Cargamos todos los datos una sola vez para tenerlos disponibles
 document.addEventListener('DOMContentLoaded', () => {
+    // 🟢 Llamadas con ruta RELATIVA
     fetchAndRenderReport(
         '/api/balance-financiero', 
         'balance-financiero-table', 
