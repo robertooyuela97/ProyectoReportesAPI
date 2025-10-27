@@ -1,12 +1,13 @@
 import pyodbc
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file # ⚠️ send_file añadido
 from flask_cors import CORS
 from datetime import date
 import json
 
 app = Flask(__name__)
 CORS(app)
-# --- Configuracion de Azure SQL (Credenciales memorizadas) ---
+
+# --- Configuracion de Azure SQL ---
 SERVER = 'grupo2-bd2-ergj.database.windows.net'
 DATABASE = 'ProyectoContable_G2BD2'
 USERNAME = 'grupo2'
@@ -59,6 +60,13 @@ def ejecutar_stored_procedure(sp_name, params=None):
             conn.close()
 
 
+# --- RUTA RAÍZ (NUEVA): SOLUCIONA ERROR 404 ---
+@app.route('/')
+def home():
+    return send_file('index.html') 
+# ---------------------------------------------
+
+
 # --- Endpoint 1: Balance Financiero ---
 @app.route('/api/balance-financiero', methods=['GET'])
 def balance_financiero_api():
@@ -66,7 +74,6 @@ def balance_financiero_api():
     resultado = ejecutar_stored_procedure("SP_Generar_BalanceFinanciero", params=[1])
     
     if resultado['status'] == 'error':
-        # Retorna el error con código 500 para fallas de servidor/base de datos
         return jsonify(resultado), 500
     
     return jsonify(resultado)
@@ -85,7 +92,7 @@ def balance_comprobacion_api():
 # --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
-    resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
+    resultado = ejecutar_stored_procedure("SP_Generar_Estado Resultados", params=[1])
     
     if resultado['status'] == 'error':
         return jsonify(resultado), 500
@@ -111,7 +118,4 @@ def movimientos_cuentas_api():
     
     return jsonify(resultado)
 
-
-if __name__ == '__main__':
-    # Flask se ejecuta en modo debug
-    app.run(debug=True)
+# ⚠️ La línea 'if __name__ == "__main__": app.run(debug=True)' fue eliminada para Gunicorn.
