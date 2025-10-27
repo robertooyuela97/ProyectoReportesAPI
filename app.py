@@ -1,16 +1,17 @@
-import os # 👈 NUEVA IMPORTACIÓN
+import os 
 import pyodbc
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from datetime import date
 import json
 
-app = Flask(__name__)
+# 🟢 CORRECCIÓN: Inicialización explícita de la carpeta estática.
+# Esto asegura que Azure pueda servir los archivos dentro de /static/
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 CORS(app)
 
 # --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
-# En un ambiente Azure, estas variables se leen del App Service.
-# En local, si no las defines, usa las credenciales hardcodeadas (menos seguro).
+# Lee las variables del entorno. 
 SERVER = os.environ.get('DB_SERVER', 'grupo2-bd2-ergj.database.windows.net')
 DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
 USERNAME = os.environ.get('DB_USER', 'grupo2')
@@ -67,7 +68,8 @@ def ejecutar_stored_procedure(sp_name, params=None):
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
-    # ⚠️ Esto sirve el archivo index.html ubicado en la raíz del proyecto.
+    # ⚠️ Esto sirve el archivo index.html ubicado en la raíz del proyecto,
+    # el cual usa url_for() para referenciar los archivos estáticos en /static/.
     return send_file('index.html') 
 # ---------------------------------------------
 
@@ -97,7 +99,6 @@ def balance_comprobacion_api():
 # --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
-    # ⚠️ CUIDADO: Revisa el nombre exacto de tu PS en SQL (sin espacios si es posible)
     resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
     
     if resultado['status'] == 'error':
@@ -123,5 +124,3 @@ def movimientos_cuentas_api():
         return jsonify(resultado), 500
     
     return jsonify(resultado)
-
-# Nota: La línea 'if __name__ == "__main__": app.run(debug=True)' es eliminada para Gunicorn.
