@@ -6,7 +6,6 @@ from datetime import date
 import json
 
 # 🟢 CONFIGURACIÓN DE RUTAS Y APP
-# Usar ruta absoluta para templates/static para compatibilidad con Azure App Service
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 
 app = Flask(
@@ -18,17 +17,21 @@ app = Flask(
 CORS(app)
 
 # --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
-# Si las variables de entorno no existen en Azure Portal, usa los valores por defecto hardcodeados
 SERVER = os.environ.get('DB_SERVER', 'grupo2-bd2-ergj.database.windows.net')
 DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
 USERNAME = os.environ.get('DB_USER', 'grupo2')
 PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
-DRIVER = '{ODBC Driver 17 for SQL Server}' 
 
+# 🔴 CORRECCIÓN CLAVE: Usar el driver compatible con Azure Linux (FreeTDS)
+DRIVER_COMPATIBLE = 'FreeTDS' 
+
+# 🟢 NOTA: La cadena de conexión es ligeramente diferente para FreeTDS,
+# eliminando 'Encrypt=yes;TrustServerCertificate=no;' ya que FreeTDS maneja la conexión TLS diferente.
+# Se añade 'tds_version=8.0' para la compatibilidad con SQL Server 2008+
 CONNECTION_STRING = (
-    f'DRIVER={DRIVER};SERVER={SERVER};DATABASE={DATABASE};'
-    f'UID={USERNAME};PWD={PASSWORD};'
-    f'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+    f'DRIVER={DRIVER_COMPATIBLE};SERVER={SERVER};DATABASE={DATABASE};'
+    f'UID={USERNAME};PWD={PASSWORD};TDS_VERSION=8.0;' 
+    f'Connection Timeout=30;'
 )
 # -------------------------------------------------------------
 
@@ -62,10 +65,13 @@ def ejecutar_stored_procedure(sp_name, params=None):
         # Manejo de error específico de Azure
         if 'Login failed' in error_msg:
              message = "Error de CREDENCIALES (Usuario/Contraseña) o FIREWALL."
-        elif 'ODBC Driver' in error_msg or 'file or directory' in error_msg:
+        elif 'Driver' in error_msg or 'file or directory' in error_msg:
+             # Este mensaje ya no debería salir con FreeTDS, pero lo mantenemos como fallback.
              message = "Error de DRIVER ODBC. Azure no tiene el driver instalado o necesita FreeTDS."
         elif 'Connection Timeout' in error_msg:
              message = "Error de TIMEOUT. Posiblemente FIREWALL o el servidor SQL no está corriendo."
+        elif 'Invalid object name' in error_msg:
+             message = "Error: Una tabla o vista no existe. (Revisar SP_Generar_EstadoResultados y la tabla 'Resultados')."
         else:
              message = f"Error de SQL desconocido: {error_msg}"
             
@@ -80,7 +86,6 @@ def ejecutar_stored_procedure(sp_name, params=None):
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
-    # ⚠️ Esto es lo que carga la interfaz web.
     return render_template('index.html') 
 # ---------------------------------------------
 
@@ -130,4 +135,5 @@ def movimientos_cuentas_api():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Usar puerto 8000 en el entorno local
+    app.run(host='0.0.0.0', port=8000, debug=True)
