@@ -116,12 +116,13 @@ def home():
 def reporte_vista_api(view_name):
     """
     Ruta para obtener datos de cualquier vista (Activo/Pasivo Corriente/No Corriente)
-    mediante una consulta SELECT * FROM <view_name>.
+    mediante una consulta SELECT * FROM dbo.<view_name>.
     """
     if not view_name:
         return jsonify({"status": "error", "message": "Nombre de vista no especificado"}), 400
         
-    query = f"SELECT * FROM {view_name}"
+    # CORRECCIÓN: Calificar la vista con 'dbo.' para evitar el error 'Invalid object name'
+    query = f"SELECT * FROM dbo.{view_name}"
     
     resultado = ejecutar_select_query(query)
     
