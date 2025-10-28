@@ -5,8 +5,7 @@ from flask_cors import CORS
 from datetime import date
 import json
 
-# 🟢 CONFIGURACIÓN DE RUTAS Y APP (CON RUTA ABSOLUTA PARA GARANTIZAR index.html)
-# Especificar la ruta absoluta para las plantillas
+# Ruta absoluta de templates
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 
 app = Flask(
@@ -22,46 +21,50 @@ SERVER = os.environ.get('DB_SERVER', 'grupo2-bd2-ergj.database.windows.net')
 DATABASE = os.environ.get('DB_NAME', 'ProyectoContable_G2BD2')
 USERNAME = os.environ.get('DB_USER', 'grupo2')
 PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
+# Specify driver name via env var or default to ODBC Driver 18
+DB_DRIVER = os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server')
 
-# 🟢 CADENA DE CONEXIÓN MÁS GENÉRICA PARA LINUX (OMITE DRIVER=)
+# Cadena de conexion DSN-less incluyendo DRIVER (necesario en Linux)
 CONNECTION_STRING = (
-    f'SERVER={SERVER},1433;DATABASE={DATABASE};'
-    f'UID={USERNAME};PWD={PASSWORD};'
-    f'Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+    f"DRIVER={{{DB_DRIVER}}};"
+    f"SERVER={SERVER},1433;"
+    f"DATABASE={DATABASE};"
+    f"UID={USERNAME};"
+    f"PWD={PASSWORD};"
+    f"Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
 )
-# -------------------------------------------------------------
 
 def ejecutar_stored_procedure(sp_name, params=None):
     """Funcion generica para ejecutar un PS y devolver los datos."""
     conn = None
     try:
+        # Intentar conectar con la cadena completa (incluye DRIVER)
         conn = pyodbc.connect(CONNECTION_STRING)
         cursor = conn.cursor()
         
-        # Generar la llamada al stored procedure
         placeholders = ', '.join('?' for _ in params) if params else ''
         sp_call = f"{{CALL {sp_name}({placeholders})}}"
         
         cursor.execute(sp_call, params or [])
         
-        # 1. Obtener los nombres de las columnas
-        column_names = [column[0] for column in cursor.description]
+        # Si el stored procedure no retorna filas, description puede ser None
+        column_names = [column[0] for column in cursor.description] if cursor.description else []
         
-        # 2. Mapear los resultados
         reporte_data = []
         for row in cursor.fetchall():
-            # Convertir fechas/decimales a string para serialización JSON
             processed_row = [str(item) if item is not None else item for item in row]
             reporte_data.append(dict(zip(column_names, processed_row)))
 
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
-        # Manejo de error para conexión/credenciales
         error_msg = str(ex)
-        message = f"Error CRÍTICO de SQL (Fallo de conexión): Detalle: {error_msg}"
-            
-        print(f"CRITICAL ERROR: {message} -> Detalles: {error_msg}") 
+        # Mensaje más informativo
+        message = (
+            "Error CRÍTICO de SQL (Login Failed/Firewall/Driver): "
+            f"Detalle: {error_msg}"
+        )
+        app.logger.error(message)
         return {"status": "error", "message": message}
         
     finally:
@@ -69,14 +72,11 @@ def ejecutar_stored_procedure(sp_name, params=None):
             conn.close()
 
 
-# --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
 @app.route('/')
 def home():
     return render_template('index.html') 
-# ---------------------------------------------
 
 
-# --- Endpoint 1: Balance Financiero ---
 @app.route('/api/balance-financiero', methods=['GET'])
 def balance_financiero_api():
     resultado = ejecutar_stored_procedure("SP_Generar_BalanceFinanciero", params=[1])
@@ -84,7 +84,7 @@ def balance_financiero_api():
         return jsonify(resultado), 500
     return jsonify(resultado)
 
-# --- Endpoint 2: Balance de Comprobación ---
+
 @app.route('/api/balance-comprobacion', methods=['GET'])
 def balance_comprobacion_api():
     resultado = ejecutar_stored_procedure("SP_Generar_BalanceComprobacion", params=[1])
@@ -93,7 +93,6 @@ def balance_comprobacion_api():
     return jsonify(resultado)
 
 
-# --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
     resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
@@ -102,7 +101,6 @@ def estado_resultados_api():
     return jsonify(resultado)
 
 
-# --- Endpoint 4: Movimientos de Cuentas (con parámetros de URL) ---
 @app.route('/api/movimientos-cuentas', methods=['GET'])
 def movimientos_cuentas_api():
     empresa_id = 1
