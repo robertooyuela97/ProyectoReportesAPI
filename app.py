@@ -38,6 +38,7 @@ def ejecutar_stored_procedure(sp_name, params=None):
         conn = pyodbc.connect(CONNECTION_STRING)
         cursor = conn.cursor()
         
+        # Generar la llamada al stored procedure
         placeholders = ', '.join('?' for _ in params) if params else ''
         sp_call = f"{{CALL {sp_name}({placeholders})}}"
         
@@ -56,9 +57,9 @@ def ejecutar_stored_procedure(sp_name, params=None):
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
-        # 🔴 Este error es el 'Login failed' (18456)
+        # Manejo de error para conexión/credenciales
         error_msg = str(ex)
-        message = f"Error CRÍTICO de SQL (Login Failed/Firewall): Detalle: {error_msg}"
+        message = f"Error CRÍTICO de SQL (Fallo de conexión): Detalle: {error_msg}"
             
         print(f"CRITICAL ERROR: {message} -> Detalles: {error_msg}") 
         return {"status": "error", "message": message}
