@@ -5,6 +5,8 @@ from flask_cors import CORS
 import json
 
 # Ruta absoluta de templates
+# El canvas de desarrollo usa un sistema de archivos virtual, pero esta línea
+# asegura que Flask encuentre la carpeta 'templates' si existiera.
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 
 app = Flask(
@@ -16,7 +18,8 @@ app = Flask(
 CORS(app)
 
 # --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
-# Usamos variables de entorno para las credenciales.
+# Usamos variables de entorno para las credenciales, un estándar de seguridad.
+# Estas variables deben ser configuradas en el entorno de ejecución (Ej: Canvas).
 SERVER = os.environ.get('DB_SERVER')
 DATABASE = os.environ.get('DB_NAME')
 USERNAME = os.environ.get('DB_USER')
@@ -39,21 +42,21 @@ CONNECTION_STRING = (
 def ejecutar_select_query(query, params=None):
     """
     Función genérica para ejecutar una query SELECT (incluyendo filtros WHERE).
-    Ahora maneja el filtro de empresa para las vistas.
+    Garantiza la seguridad mediante el uso de parámetros para evitar inyección SQL.
     """
     conn = None
     try:
         conn = pyodbc.connect(CONNECTION_STRING)
         cursor = conn.cursor()
         
-        # Ejecutar la query directamente
+        # Ejecutar la query con parámetros para seguridad
         cursor.execute(query, params or [])
         
         column_names = [column[0] for column in cursor.description] if cursor.description else []
         
         reporte_data = []
         for row in cursor.fetchall():
-            # Convertir todos los items a string si no son None para asegurar serialización JSON
+            # Convertir a diccionario y asegurar la serialización JSON (convierte non-None a str)
             processed_row = [str(item) if item is not None else item for item in row]
             reporte_data.append(dict(zip(column_names, processed_row)))
 
@@ -66,7 +69,7 @@ def ejecutar_select_query(query, params=None):
             f"Detalle: {error_msg}"
         )
         app.logger.error(message)
-        # Devolvemos un error 500 para fallos de conexión o driver
+        # Devolvemos un error con detalle para facilitar la depuración
         if 'Login failed' in error_msg or 'ODBC Driver' in error_msg or 'firewall' in error_msg:
              return {"status": "error", "message": "Fallo de Conexión/Credenciales/Driver. Revise las variables de entorno.", "detail": error_msg}
         return {"status": "error", "message": message}
@@ -78,19 +81,19 @@ def ejecutar_select_query(query, params=None):
 @app.route('/')
 def home():
     """Ruta principal que sirve la interfaz web."""
+    # En un entorno de desarrollo Canvas, 'index.html' es el archivo HTML principal
     return render_template('index.html') 
 
 # --- RUTA PARA OBTENER LA LISTA DE EMPRESAS ---
 
 @app.route('/api/empresas', methods=['GET'])
 def obtener_empresas_api():
-    """Obtiene la lista de empresas (REG_Empresa y Nombre_empresa) de la tabla Principal."""
-    # Nota: Esta query no usa el ID de la empresa ya que lista todas las disponibles.
+    """Endpoint: Obtiene la lista de empresas (REG_Empresa y Nombre_empresa) de la tabla Principal."""
     query = "SELECT REG_Empresa, Nombre_empresa FROM dbo.Principal ORDER BY REG_Empresa"
     resultado = ejecutar_select_query(query)
     
+    # Devolvemos 500 si hay un error de conexión/SQL
     if resultado['status'] == 'error':
-        # Devolvemos un código 500 solo si falla la conexión
         return jsonify(resultado), 500
         
     return jsonify(resultado)
@@ -100,21 +103,21 @@ def obtener_empresas_api():
 @app.route('/api/reporte-vista/<view_name>', methods=['GET'])
 def reporte_vista_api(view_name):
     """
-    Ruta para obtener datos de cualquier vista (Activo/Pasivo/Patrimonio) 
-    filtrando por el ID de empresa proporcionado en los argumentos de la URL.
+    Endpoint: Obtiene datos de cualquier vista (Activo/Pasivo/Patrimonio) 
+    filtrando por el ID de empresa.
     """
     if not view_name:
         return jsonify({"status": "error", "message": "Nombre de vista no especificado"}), 400
         
-    # El ID de la empresa es OBLIGATORIO para filtrar
+    # El ID de la empresa es OBLIGATORIO (Empresa es el filtro principal)
+    # Se espera un argumento de consulta '?empresa_id=<ID>'
     empresa_id = request.args.get('empresa_id', type=int)
     
     if not empresa_id:
          return jsonify({"status": "error", "message": "Filtro: empresa_id es requerido."}), 400
 
-    # 1. Construir la consulta SELECT
-    # Asumimos que todas las vistas relevantes para el balance tienen una columna llamada 'Empresa'
-    # que se refiere a REG_Empresa.
+    # 1. Construir la consulta SELECT usando el nombre de la vista y un placeholder '?'
+    # Asumimos que todas las vistas relevantes tienen una columna llamada 'Empresa' que apunta a REG_Empresa
     query = f"SELECT * FROM dbo.{view_name} WHERE Empresa = ?"
     
     # 2. Ejecutar la consulta con el parámetro de seguridad
@@ -122,24 +125,17 @@ def reporte_vista_api(view_name):
     
     # Manejo de errores específico
     if resultado['status'] == 'error':
-        if 'Invalid object name' in resultado['message']:
+        # Error 404 si la vista no existe
+        if 'Invalid object name' in resultado.get('detail', ''):
              return jsonify({
                 "status": "error", 
-                "message": f"Error: La vista '{view_name}' no existe o no se encontró en el esquema de la base de datos.",
-                "detail": resultado['message']
+                "message": f"Error: La vista '{view_name}' no existe o no se encontró.",
+                "detail": resultado['detail']
              }), 404
         return jsonify(resultado), 500 # Otros errores de SQL/Conexión
     
     return jsonify(resultado)
 
-# --- RUTAS OBSOLETAS (SE ELIMINAN) ---
-# Se eliminan:
-# /api/balance-financiero
-# /api/balance-comprobacion
-# /api/estado-resultados
-# /api/movimientos-cuentas 
-# ------------------------------------
-
 if __name__ == '__main__':
-    # Usar el puerto 8000 si se ejecuta localmente
+    # Ejecuta la aplicación Flask en el puerto 8000
     app.run(host='0.0.0.0', port=8000, debug=True)
