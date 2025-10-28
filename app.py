@@ -5,9 +5,16 @@ from flask_cors import CORS
 from datetime import date
 import json
 
-# 🟢 CONFIGURACIÓN DE RUTAS Y APP (SE ELIMINA EL CÁLCULO DE RUTA ABSOLUTA)
-# Flask asume que 'templates' y 'static' están en el mismo directorio raíz.
-app = Flask(__name__)
+# 🟢 CONFIGURACIÓN DE RUTAS Y APP (CON RUTA ABSOLUTA PARA GARANTIZAR index.html)
+# Especificar la ruta absoluta para las plantillas
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
+
+app = Flask(
+    __name__, 
+    template_folder=template_dir, 
+    static_folder='static', 
+    static_url_path='/static'
+)
 CORS(app)
 
 # --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
@@ -42,23 +49,18 @@ def ejecutar_stored_procedure(sp_name, params=None):
         # 2. Mapear los resultados
         reporte_data = []
         for row in cursor.fetchall():
+            # Convertir fechas/decimales a string para serialización JSON
             processed_row = [str(item) if item is not None else item for item in row]
             reporte_data.append(dict(zip(column_names, processed_row)))
 
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
-        # 🔴 Manejo de error definitivo
+        # 🔴 Manejo de error base (el original que fallaba en conexión)
         error_msg = str(ex)
         
-        if 'Login failed' in error_msg or 'firewall' in error_msg or 'Access is denied' in error_msg:
-             message = "Error de CONEXIÓN: Revisar FIREWALL de Azure SQL o CREDENCIALES."
-        elif 'Invalid object name' in error_msg:
-             # Este error ocurre si el PS usa la tabla 'Resultados' en lugar de 'ventas_07'
-             message = "Error en el Stored Procedure (PS): Una tabla o vista no existe. Revise la tabla 'Resultados' en el PS."
-        else:
-             # Este es el error de DRIVER/ODBC si la conexión inicial falla
-             message = f"Error CRÍTICO de DRIVER ODBC. Azure no tiene el driver instalado o falla la conexión. Detalle: {error_msg}"
+        # Usamos el mensaje de error original para volver al estado conocido
+        message = f"Error CRÍTICO de SQL (Probable DRIVER ODBC, FIREWALL o PS): Detalle: {error_msg}"
             
         print(f"CRITICAL ERROR: {message} -> Detalles: {error_msg}") 
         return {"status": "error", "message": message}
@@ -69,7 +71,6 @@ def ejecutar_stored_procedure(sp_name, params=None):
 
 
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
-# Flask ahora encuentra 'index.html' sin ruta absoluta.
 @app.route('/')
 def home():
     return render_template('index.html') 
@@ -96,6 +97,7 @@ def balance_comprobacion_api():
 # --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
+    # Asumiendo que usted ya corrigió la tabla 'Resultados' a 'ventas_07' en el PS
     resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
     if resultado['status'] == 'error':
         return jsonify(resultado), 500
@@ -122,4 +124,3 @@ def movimientos_cuentas_api():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
-# Iniciar la aplicación Flask en el puerto 8000
