@@ -7,35 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Librerías de Exportación -->
     <script src="https://cdn.jsdelivr.net/npm/table-to-excel@1.0.1/dist/tableToExcel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f9fc;
-        }
-        /* Estilo para la tarjeta principal del reporte */
-        .report-card {
-            min-height: 400px;
-        }
-        /* Estilos para la tabla (Mejora la legibilidad) */
-        .report-table th, .report-table td {
-            padding: 12px 16px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .report-table th {
-            background-color: #edf2f7;
-            font-weight: 600;
-            color: #2d3748;
-            text-transform: uppercase;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body class="p-4 sm:p-8">
+<body class="p-4 sm:p-8" style="font-family: 'Inter', sans-serif; background-color: #f7f9fc;">
 
-    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
+    <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
 
         <header class="bg-red-700 p-4 sm:p-6 text-white flex flex-col sm:flex-row justify-between items-center">
             <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-yellow-300">
@@ -44,48 +24,57 @@
             
             <div class="mt-3 sm:mt-0 flex items-center space-x-3">
                 <label for="empresa-select" class="text-sm font-medium">Empresa Actual:</label>
+                <!-- El JS poblará esta lista con las empresas y seleccionará una por defecto -->
                 <select id="empresa-select" class="p-2 rounded-lg text-gray-800 bg-white shadow-md focus:ring-2 focus:ring-yellow-300 transition duration-150">
-                    <option value="1">Empresa ID 1 (Por Defecto)</option>
+                     <!-- Opción inicial que será reemplazada por el JS -->
+                     <option value="placeholder" disabled selected>Cargando empresas...</option>
                 </select>
             </div>
         </header>
 
         <section class="p-4 sm:p-6 border-b border-gray-100">
             <h2 class="text-lg font-semibold text-gray-700 mb-4">Selección de Componente del Balance General (Vistas)</h2>
-            <div id="report-buttons" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="report-buttons" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 
-                <button data-view="V_ActivoCorriente" class="report-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
-                    <i class="ph ph-piggy-bank text-2xl mr-2"></i> Activo Corriente
+                <!-- Activos Corrientes y No Corrientes (AZUL) -->
+                <button data-view="vw_total_activo_corriente" class="report-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm">
+                    <i class="ph ph-piggy-bank text-xl mr-2"></i> Activo Corriente
                 </button>
                 
-                <button data-view="V_ActivoNoCorriente" class="report-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
-                    <i class="ph ph-buildings text-2xl mr-2"></i> Activo No Corriente
+                <button data-view="vw_total_activo_no_corriente" class="report-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm">
+                    <i class="ph ph-buildings text-xl mr-2"></i> Activo No Corriente
                 </button>
                 
-                <button data-view="V_PasivoCorriente" class="report-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
-                    <i class="ph ph-receipt text-2xl mr-2"></i> Pasivo Corriente
+                <!-- Pasivos Corrientes y No Corrientes (ROJO) -->
+                <button data-view="vw_total_pasivo_corriente" class="report-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm">
+                    <i class="ph ph-receipt text-xl mr-2"></i> Pasivo Corriente
                 </button>
                 
-                <button data-view="V_PasivoNoCorriente" class="report-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
-                    <i class="ph ph-credit-card text-2xl mr-2"></i> Pasivo No Corriente
+                <button data-view="vw_total_pasivo_no_corriente" class="report-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm">
+                    <i class="ph ph-credit-card text-xl mr-2"></i> Pasivo No Corriente
+                </button>
+
+                <!-- Patrimonio (AMARILLO) -->
+                 <button data-view="vw_total_patrimonio" class="report-btn bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm">
+                    <i class="ph ph-wallet text-xl mr-2"></i> Patrimonio
                 </button>
                 
             </div>
             
             <div class="mt-4 flex justify-end space-x-3">
                 <button onclick="exportTableToExcel('report-table', document.getElementById('report-title').textContent)" 
-                        class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md">
+                        class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md flex items-center">
                     <i class="ph ph-file-xls text-xl mr-1"></i> Exportar a Excel
                 </button>
                 <button onclick="exportTableToPDF('report-table', document.getElementById('report-title').textContent)" 
-                        class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition duration-150 shadow-md">
+                        class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition duration-150 shadow-md flex items-center">
                     <i class="ph ph-file-pdf text-xl mr-1"></i> Exportar a PDF
                 </button>
             </div>
         </section>
 
         <main class="p-4 sm:p-6">
-            <div class="report-card border border-gray-200 rounded-xl p-4 shadow-inner">
+            <div id="report-card" class="report-card border border-gray-200 rounded-xl p-4 shadow-inner">
                 <h3 id="report-title" class="text-xl font-bold text-gray-800 mb-4">Seleccione un reporte para empezar</h3>
                 <div id="report-content" class="overflow-x-auto">
                     <div id="loading-message" class="text-center p-10 text-gray-500 hidden">
@@ -105,11 +94,12 @@
                 </div>
             </div>
             
-            </main>
+        </main>
 
     </div>
     
-    <script src="static/script.js"></script>
+    <!-- Asegúrate de tener el script.js en la ruta correcta -->
+    <script src="/static/script.js"></script>
 
 </body>
 </html>
