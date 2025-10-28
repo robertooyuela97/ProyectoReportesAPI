@@ -34,6 +34,8 @@ CONNECTION_STRING = (
     f"Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
 )
 
+# --- Funciones de Acceso a la Base de Datos ---
+
 def ejecutar_stored_procedure(sp_name, params=None):
     """Funcion generica para ejecutar un PS y devolver los datos."""
     conn = None
@@ -71,11 +73,63 @@ def ejecutar_stored_procedure(sp_name, params=None):
         if conn:
             conn.close()
 
+def ejecutar_select_query(query):
+    """Funcion generica para ejecutar una query SELECT y devolver los datos de una vista."""
+    conn = None
+    try:
+        conn = pyodbc.connect(CONNECTION_STRING)
+        cursor = conn.cursor()
+        
+        # Ejecutar la query directamente
+        cursor.execute(query)
+        
+        column_names = [column[0] for column in cursor.description] if cursor.description else []
+        
+        reporte_data = []
+        for row in cursor.fetchall():
+            # Procesar la fila, convertir a string si no es None, para JSON serializable
+            processed_row = [str(item) if item is not None else item for item in row]
+            reporte_data.append(dict(zip(column_names, processed_row)))
+
+        return {"status": "success", "reporte": "Vista: " + query, "data": reporte_data}
+
+    except pyodbc.Error as ex:
+        error_msg = str(ex)
+        message = (
+            "Error de SQL al ejecutar SELECT: "
+            f"Detalle: {error_msg}"
+        )
+        app.logger.error(message)
+        return {"status": "error", "message": message}
+        
+    finally:
+        if conn:
+            conn.close()
 
 @app.route('/')
 def home():
     return render_template('index.html') 
 
+# --- Rutas de API para VISTAS DE COMPONENTES DEL BALANCE ---
+
+@app.route('/api/reporte-vista/<view_name>', methods=['GET'])
+def reporte_vista_api(view_name):
+    """
+    Ruta para obtener datos de cualquier vista (Activo/Pasivo Corriente/No Corriente)
+    mediante una consulta SELECT * FROM <view_name>.
+    """
+    if not view_name:
+        return jsonify({"status": "error", "message": "Nombre de vista no especificado"}), 400
+        
+    query = f"SELECT * FROM {view_name}"
+    
+    resultado = ejecutar_select_query(query)
+    
+    if resultado['status'] == 'error':
+        return jsonify(resultado), 500
+    return jsonify(resultado)
+
+# --- Rutas de API para Reportes Financieros completos (Stored Procedures) ---
 
 @app.route('/api/balance-financiero', methods=['GET'])
 def balance_financiero_api():

@@ -3,217 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Reportes Financieros (API Web)</title>
-    
-    <!-- CARGA EL ARCHIVO CSS EXTERNO (debe estar en static/styles.css) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    
-    <!-- ESTILOS BÁSICOS IN-LINE (para asegurar que el navegador cargue el menú) -->
+    <title>Reportes Contables y Financieros</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/table-to-excel@1.0.1/dist/tableToExcel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* Estilos generales del cuerpo */
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f4;
-            color: #333;
-            margin: 20px;
-            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
         }
-        h1 {
-            text-align: center;
-            color: #8b0000; /* Rojo oscuro */
-            margin-bottom: 40px;
-            border-bottom: 2px solid #ccc;
-            padding-bottom: 10px;
+        /* Estilo para la tarjeta principal del reporte */
+        .report-card {
+            min-height: 400px;
         }
-
-        /* Estilos de tabla (para prevenir que la tabla se vea horrible si falla styles.css) */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background-color: white;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
+        /* Estilos para la tabla (Mejora la legibilidad) */
+        .report-table th, .report-table td {
+            padding: 12px 16px;
             text-align: left;
+            border-bottom: 1px solid #e2e8f0;
         }
-        th {
-            background-color: #8b0000;
-            color: white;
-            font-weight: bold;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .success {
-            color: green;
-            font-weight: bold;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
-        }
-        
-        /* Estilos específicos para el menú de navegación */
-        .navbar {
-            display: flex;
-            justify-content: space-around;
-            background-color: #8b0000;
-            padding: 15px 0;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        .navbar button {
-            background-color: transparent;
-            color: white;
-            border: 2px solid transparent;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 1.1em;
-            transition: all 0.3s ease;
-        }
-        .navbar button:hover, .navbar button.active {
-            background-color: #b22222;
-            border-color: white;
-            border-radius: 6px;
-        }
-        
-        /* Ocultar todos los contenedores de reportes por defecto */
-        .report-container {
-            display: none;
-            padding: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Estilos para los botones de exportación */
-        .export-group {
-            margin-bottom: 15px; 
-            display: flex; 
-            gap: 10px;
-        }
-        .export-group button {
-            padding: 8px 15px;
-            background-color: #b22222; /* Rojo oscuro para botones secundarios */
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            font-size: 0.9em;
-        }
-        .export-group button:hover {
-            background-color: #5a6268;
-        }
-        .filter-group {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            background-color: #f9f9f9;
-        }
-        .filter-group input[type="text"], .filter-group input[type="date"] {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .filter-group button {
-            background-color: #333;
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .filter-group button:hover {
-            background-color: #555;
+        .report-table th {
+            background-color: #edf2f7;
+            font-weight: 600;
+            color: #2d3748;
+            text-transform: uppercase;
         }
     </style>
-    
-    <!-- Librerías de exportación CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/linways/table-to-excel@v1.0.4/dist/tableToExcel.js"></script>
 </head>
-<body>
-    <h1>Reportes Contables y Financieros Consumidos desde Azure SQL</h1>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
+
+        <header class="bg-red-700 p-4 sm:p-6 text-white flex flex-col sm:flex-row justify-between items-center">
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-yellow-300">
+                REPORTES CONTABLES Y FINANCIEROS
+            </h1>
+            
+            <div class="mt-3 sm:mt-0 flex items-center space-x-3">
+                <label for="empresa-select" class="text-sm font-medium">Empresa Actual:</label>
+                <select id="empresa-select" class="p-2 rounded-lg text-gray-800 bg-white shadow-md focus:ring-2 focus:ring-yellow-300 transition duration-150">
+                    <option value="1">Empresa ID 1 (Por Defecto)</option>
+                </select>
+            </div>
+        </header>
+
+        <section class="p-4 sm:p-6 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">Selección de Componente del Balance General (Vistas)</h2>
+            <div id="report-buttons" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <button data-view="V_ActivoCorriente" class="report-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
+                    <i class="ph ph-piggy-bank text-2xl mr-2"></i> Activo Corriente
+                </button>
+                
+                <button data-view="V_ActivoNoCorriente" class="report-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
+                    <i class="ph ph-buildings text-2xl mr-2"></i> Activo No Corriente
+                </button>
+                
+                <button data-view="V_PasivoCorriente" class="report-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
+                    <i class="ph ph-receipt text-2xl mr-2"></i> Pasivo Corriente
+                </button>
+                
+                <button data-view="V_PasivoNoCorriente" class="report-btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02]">
+                    <i class="ph ph-credit-card text-2xl mr-2"></i> Pasivo No Corriente
+                </button>
+                
+            </div>
+            
+            <div class="mt-4 flex justify-end space-x-3">
+                <button onclick="exportTableToExcel('report-table', document.getElementById('report-title').textContent)" 
+                        class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md">
+                    <i class="ph ph-file-xls text-xl mr-1"></i> Exportar a Excel
+                </button>
+                <button onclick="exportTableToPDF('report-table', document.getElementById('report-title').textContent)" 
+                        class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition duration-150 shadow-md">
+                    <i class="ph ph-file-pdf text-xl mr-1"></i> Exportar a PDF
+                </button>
+            </div>
+        </section>
+
+        <main class="p-4 sm:p-6">
+            <div class="report-card border border-gray-200 rounded-xl p-4 shadow-inner">
+                <h3 id="report-title" class="text-xl font-bold text-gray-800 mb-4">Seleccione un reporte para empezar</h3>
+                <div id="report-content" class="overflow-x-auto">
+                    <div id="loading-message" class="text-center p-10 text-gray-500 hidden">
+                        <i class="ph ph-spinner-gap spin text-4xl"></i>
+                        <p class="mt-2">Cargando datos...</p>
+                    </div>
+                    <p id="initial-message" class="text-center p-10 text-gray-500">
+                        Los resultados se mostrarán aquí después de seleccionar un componente del balance.
+                    </p>
+                    <table id="report-table" class="report-table w-full hidden">
+                        <thead>
+                            <tr id="table-header"></tr>
+                        </thead>
+                        <tbody id="table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            </main>
+
+    </div>
     
-    <div class="navbar">
-        <button id="btn-bf" onclick="showReport('balance-financiero-container', 'btn-bf')">1. Balance Financiero</button>
-        <button id="btn-bc" onclick="showReport('balance-comprobacion-container', 'btn-bc')">2. Balance de Comprobación</button>
-        <button id="btn-er" onclick="showReport('estado-resultados-container', 'btn-er')">3. Estado de Resultados</button>
-        <button id="btn-mc" onclick="showReport('movimientos-cuentas-container', 'btn-mc')">4. Movimientos Cuentas</button>
-    </div>
+    <script src="static/script.js"></script>
 
-    <div id="balance-financiero-container" class="report-container">
-        <h2>1. Balance Financiero</h2>
-        <div class="export-group">
-            <button onclick="exportTableToPDF('balance-financiero-table', 'Balance Financiero')">Exportar PDF 📄</button>
-            <button onclick="exportTableToExcel('balance-financiero-table', 'Balance Financiero')">Exportar Excel 📊</button>
-        </div>
-        <p id="status-bf" class="success">Cargando reporte...</p>
-        <table id="balance-financiero-table">
-            <thead><tr><th>Concepto</th><th>Total</th></tr></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <div id="balance-comprobacion-container" class="report-container">
-        <h2>2. Balance de Comprobacion</h2>
-        <div class="export-group">
-            <button onclick="exportTableToPDF('balance-comprobacion-table', 'Balance Comprobacion')">Exportar PDF 📄</button>
-            <button onclick="exportTableToExcel('balance-comprobacion-table', 'Balance Comprobacion')">Exportar Excel 📊</button>
-        </div>
-        <p id="status-bc" class="success">Cargando reporte...</p>
-        <table id="balance-comprobacion-table">
-            <thead><tr><th>Cuenta Contable</th><th>Debe</th><th>Haber</th></tr></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <div id="estado-resultados-container" class="report-container">
-        <h2>3. Estado de Resultados</h2>
-        <div class="export-group">
-            <button onclick="exportTableToPDF('estado-resultados-table', 'Estado Resultados')">Exportar PDF 📄</button>
-            <button onclick="exportTableToExcel('estado-resultados-table', 'Estado Resultados')">Exportar Excel 📊</button>
-        </div>
-        <p id="status-er" class="success">Cargando reporte...</p>
-        <table id="estado-resultados-table">
-            <thead><tr><th>Concepto</th><th>Monto</th></tr></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <div id="movimientos-cuentas-container" class="report-container">
-        <h2>4. Movimientos de Cuentas</h2>
-        <div class="export-group">
-            <button onclick="exportTableToPDF('movimientos-cuentas-table', 'Movimientos Cuentas')">Exportar PDF 📄</button>
-            <button onclick="exportTableToExcel('movimientos-cuentas-table', 'Movimientos Cuentas')">Exportar Excel 📊</button>
-        </div>
-        <div class="filter-group">
-            <label for="cuenta">Cuenta:</label>
-            <input type="text" id="cuenta" value="Bancos">
-            <label for="inicio">Fecha Inicio:</label>
-            <input type="date" id="inicio" value="2023-01-01">
-            <label for="fin">Fecha Fin:</label>
-            <input type="date" id="fin" value="2025-12-31">
-            <button onclick="loadMovimientosCuentas(true)">Generar Reporte</button>
-        </div>
-        <p id="status-mc" class="success">Listo para generar el reporte de Movimientos.</p>
-        <table id="movimientos-cuentas-table">
-            <thead><tr><th>ID Mov.</th><th>Fecha</th><th>Detalle</th><th>Debe</th><th>Haber</th></tr></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <!-- CARGA EL ARCHIVO JS EXTERNO (debe estar en static/script.js) -->
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
