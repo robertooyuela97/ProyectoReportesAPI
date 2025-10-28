@@ -1,44 +1,47 @@
-/* styles.css */
-
 /* Estilos Globales y Tipografía */
 body { 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
     margin: 0; 
     padding: 20px; 
     background-color: #fcf8f8; /* Fondo muy claro (casi blanco con ligero tinte rojizo) */
     color: #333;
 }
 
-/* Encabezado */
+/* Encabezado Principal */
 h1 { 
     color: #8b0000; /* Granate oscuro como color primario */
     border-bottom: 3px solid #b22222; /* Rojo ladrillo para la línea divisoria */
     padding-bottom: 10px; 
     margin-bottom: 30px;
     text-transform: uppercase;
-    font-size: 2em;
+    font-size: 2.2em;
     text-align: center;
+    font-weight: 800;
 }
 
+/* Subencabezados de Sección */
 h2 { 
     color: #a52a2a; /* Rojo marrón como color secundario */
     margin-top: 30px; 
-    border-left: 5px solid #8b0000; /* Granate para la barra lateral */
-    padding-left: 10px;
+    border-left: 6px solid #8b0000; /* Granate para la barra lateral */
+    padding-left: 15px;
+    font-size: 1.6em;
+    font-weight: 700;
 }
 
-/* Contenedor del Reporte */
+/* Contenedor del Reporte (Tarjeta) */
 .report-container { 
     background-color: #fff; 
     padding: 30px; 
     border-radius: 12px; 
-    box-shadow: 0 6px 20px rgba(139, 0, 0, 0.15); /* Sombra con toque rojizo */
+    box-shadow: 0 8px 25px rgba(139, 0, 0, 0.18); /* Sombra con toque rojizo más profunda */
     margin-bottom: 40px; 
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .report-container:hover {
-    transform: translateY(-3px);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(139, 0, 0, 0.25);
 }
 
 /* Estilos de Tablas */
@@ -48,12 +51,15 @@ table {
     border-spacing: 0;
     margin-top: 15px; 
     overflow: hidden;
+    border-radius: 8px; /* Bordes redondeados para la tabla */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 th, td { 
     padding: 15px; 
     text-align: left; 
     border-bottom: 1px solid #f0e0e0; /* Líneas de división más cálidas */
+    vertical-align: middle;
 }
 
 th { 
@@ -62,80 +68,130 @@ th {
     font-weight: 700;
     text-transform: uppercase;
     font-size: 0.9em;
+    letter-spacing: 0.5px;
 }
+/* Asegurar que las esquinas superiores del thead sean redondeadas */
+table thead tr th:first-child { border-top-left-radius: 8px; }
+table thead tr th:last-child { border-top-right-radius: 8px; }
+
 
 /* Estilos para Totales (Ej: Total Activo) */
-tr:last-child td {
+tr.total-row td {
     border-bottom: none;
     font-weight: bold;
     background-color: #fcebeb; /* Fondo rosado claro para el total */
-    border-top: 2px solid #a52a2a; /* Rojo marrón fuerte para la línea de total */
+    border-top: 3px solid #a52a2a; /* Rojo marrón fuerte para la línea de total */
+    font-size: 1.1em;
 }
 
 /* Resaltar filas específicas */
-tr:nth-child(even) {
+tr:nth-child(even):not(.total-row) {
     background-color: #faf5f5; /* Tono más cálido para filas pares */
 }
 
-/* Estilos de Estado */
-.success { color: #a52a2a; font-weight: bold; } /* Rojo Marrón para éxito (estilo formal) */
+/* Efecto hover en filas */
+tr:not(:first-child):not(.total-row):hover {
+    background-color: #fcebeb;
+    cursor: default;
+}
+
+/* Estilos de Estado (Usados para mensajes o valores) */
+.success { color: #8b0000; font-weight: bold; } /* Granate principal para éxito */
 .error { color: #dc3545; font-weight: bold; } /* Rojo brillante para error */
+.currency-value { text-align: right; font-family: monospace; } /* Para alinear números a la derecha */
+
 
 /* Estilos de Filtros */
 .filter-group { 
     display: flex; 
-    gap: 15px; 
-    margin-bottom: 25px; 
+    gap: 20px; 
+    margin-bottom: 35px; 
     align-items: center; 
     background-color: #fdf5f5; /* Fondo más cálido para el grupo de filtros */
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px dashed #dcbaba; /* Borde punteado rojizo */
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #e0caca; 
 }
 .filter-group label { 
     font-weight: 600; 
     color: #555; 
+    white-space: nowrap;
 }
 .filter-group input, .filter-group select { 
     padding: 10px; 
     border: 1px solid #ccc; 
     border-radius: 6px; 
     flex-grow: 1;
+    font-size: 1em;
 }
 .filter-group button { 
-    padding: 10px 20px;
-    background-color: #dc3545; /* Rojo Coral/Acción */
+    padding: 10px 25px;
+    background-color: #b22222; /* Rojo Ladrillo como color de acción principal */
     color: white; 
     cursor: pointer; 
     border: none; 
     border-radius: 6px;
     font-weight: bold;
-    transition: background-color 0.3s ease;
+    font-size: 1em;
+    transition: background-color 0.3s ease, transform 0.1s ease;
 }
 .filter-group button:hover { 
-    background-color: #a52a2a; /* Rojo Marrón al pasar el ratón */
+    background-color: #8b0000; /* Granate oscuro al pasar el ratón */
+    transform: translateY(-1px);
+}
+.filter-group button:active {
+    transform: translateY(0);
 }
 
-/* ESTILOS ADICIONALES PARA BOTONES DE NAVEGACIÓN Y EXPORTACIÓN (Si están en styles.css) */
-/* Si el código del menú está en <style> en el HTML, actualízalo allí: */
 
-/* Estilos para el menú (Navbar) */
-/*
+/* Estilos para la Barra de Navegación/Acciones (Menú de reportes y exportación) */
 .navbar {
-    background-color: #8b0000; 
+    background-color: #8b0000; /* Granate Principal */
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
 }
-.navbar button:hover, .navbar button.active {
-    background-color: #a52a2a; 
-    border-color: white;
-}
-*/
 
-/* Estilos para botones de exportación (Si están en styles.css) */
-/*
+.report-menu {
+    display: flex;
+    gap: 10px;
+}
+
 .export-group button {
-    background-color: #b22222;
+    background-color: #b22222; /* Rojo Ladrillo */
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
 }
+
 .export-group button:hover {
-    background-color: #8b0000;
+    background-color: #a52a2a; /* Rojo Marrón */
 }
-*/
+
+/* Estilos para el botón de reporte activo */
+.report-btn {
+    background-color: #8b0000;
+    color: #fff;
+    padding: 10px 15px;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+.report-btn:hover {
+    background-color: #a52a2a;
+}
+
+.report-btn.active {
+    background-color: #a52a2a; /* Rojo Marrón para el activo */
+    border-color: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
