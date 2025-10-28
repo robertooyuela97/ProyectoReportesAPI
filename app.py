@@ -5,16 +5,9 @@ from flask_cors import CORS
 from datetime import date
 import json
 
-# 🟢 CONFIGURACIÓN DE RUTAS Y APP
-# Especificar la ruta absoluta para las plantillas
-template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
-
-app = Flask(
-    __name__, 
-    template_folder=template_dir, 
-    static_folder='static', 
-    static_url_path='/static'
-)
+# 🟢 CONFIGURACIÓN DE RUTAS Y APP (SE ELIMINA EL CÁLCULO DE RUTA ABSOLUTA)
+# Flask asume que 'templates' y 'static' están en el mismo directorio raíz.
+app = Flask(__name__)
 CORS(app)
 
 # --- Configuracion de Azure SQL (USANDO VARIABLES DE ENTORNO) ---
@@ -24,7 +17,6 @@ USERNAME = os.environ.get('DB_USER', 'grupo2')
 PASSWORD = os.environ.get('DB_PASSWORD', 'Grupobd.2') 
 
 # 🟢 CADENA DE CONEXIÓN MÁS GENÉRICA PARA LINUX (OMITE DRIVER=)
-# Esto obliga a pyodbc a usar el driver preconfigurado (FreeTDS)
 CONNECTION_STRING = (
     f'SERVER={SERVER},1433;DATABASE={DATABASE};'
     f'UID={USERNAME};PWD={PASSWORD};'
@@ -56,17 +48,17 @@ def ejecutar_stored_procedure(sp_name, params=None):
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
-        # 🔴 Manejo de error actualizado para Azure
+        # 🔴 Manejo de error definitivo
         error_msg = str(ex)
         
-        # Error específico de la tabla 'Resultados' que ya debería haber corregido
-        if 'Invalid object name' in error_msg:
-             message = "Error en el Stored Procedure: Una tabla o vista no existe (Revise la tabla 'Resultados')."
-        elif 'Login failed' in error_msg or 'firewall' in error_msg or 'Access is denied' in error_msg:
+        if 'Login failed' in error_msg or 'firewall' in error_msg or 'Access is denied' in error_msg:
              message = "Error de CONEXIÓN: Revisar FIREWALL de Azure SQL o CREDENCIALES."
+        elif 'Invalid object name' in error_msg:
+             # Este error ocurre si el PS usa la tabla 'Resultados' en lugar de 'ventas_07'
+             message = "Error en el Stored Procedure (PS): Una tabla o vista no existe. Revise la tabla 'Resultados' en el PS."
         else:
-             # Este sigue siendo el error del driver si falla al inicializar pyodbc
-             message = f"Error CRÍTICO de SQL: DRIVER ODBC. Azure no tiene el driver instalado o falla la conexión. Detalle: {error_msg}"
+             # Este es el error de DRIVER/ODBC si la conexión inicial falla
+             message = f"Error CRÍTICO de DRIVER ODBC. Azure no tiene el driver instalado o falla la conexión. Detalle: {error_msg}"
             
         print(f"CRITICAL ERROR: {message} -> Detalles: {error_msg}") 
         return {"status": "error", "message": message}
@@ -77,6 +69,7 @@ def ejecutar_stored_procedure(sp_name, params=None):
 
 
 # --- RUTA RAÍZ (SERVIR INTERFAZ HTML) ---
+# Flask ahora encuentra 'index.html' sin ruta absoluta.
 @app.route('/')
 def home():
     return render_template('index.html') 
@@ -129,3 +122,4 @@ def movimientos_cuentas_api():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
+# Iniciar la aplicación Flask en el puerto 8000
