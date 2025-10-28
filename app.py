@@ -40,7 +40,6 @@ def ejecutar_stored_procedure(sp_name, params=None):
     """Funcion generica para ejecutar un PS y devolver los datos."""
     conn = None
     try:
-        # Intentar conectar con la cadena completa (incluye DRIVER)
         conn = pyodbc.connect(CONNECTION_STRING)
         cursor = conn.cursor()
         
@@ -49,7 +48,6 @@ def ejecutar_stored_procedure(sp_name, params=None):
         
         cursor.execute(sp_call, params or [])
         
-        # Si el stored procedure no retorna filas, description puede ser None
         column_names = [column[0] for column in cursor.description] if cursor.description else []
         
         reporte_data = []
@@ -61,7 +59,6 @@ def ejecutar_stored_procedure(sp_name, params=None):
 
     except pyodbc.Error as ex:
         error_msg = str(ex)
-        # Mensaje más informativo
         message = (
             "Error CRÍTICO de SQL (Login Failed/Firewall/Driver): "
             f"Detalle: {error_msg}"
@@ -87,7 +84,6 @@ def ejecutar_select_query(query):
         
         reporte_data = []
         for row in cursor.fetchall():
-            # Procesar la fila, convertir a string si no es None, para JSON serializable
             processed_row = [str(item) if item is not None else item for item in row]
             reporte_data.append(dict(zip(column_names, processed_row)))
 
@@ -117,20 +113,47 @@ def reporte_vista_api(view_name):
     """
     Ruta para obtener datos de cualquier vista (Activo/Pasivo Corriente/No Corriente)
     mediante una consulta SELECT * FROM dbo.<view_name>.
+    
+    INCLUYE PRUEBA DE CONECTIVIDAD DE EMERGENCIA.
     """
     if not view_name:
         return jsonify({"status": "error", "message": "Nombre de vista no especificado"}), 400
         
-    # CORRECCIÓN: Calificar la vista con 'dbo.' para evitar el error 'Invalid object name'
+    # La consulta que ha estado fallando
     query = f"SELECT * FROM dbo.{view_name}"
     
     resultado = ejecutar_select_query(query)
     
+    if resultado['status'] == 'error' and 'Invalid object name' in resultado['message']:
+        # Si el error persiste, ejecutamos una consulta de prueba a una tabla básica
+        app.logger.error(f"FALLO la consulta a {view_name}. Intentando consulta de prueba...")
+        
+        # *** CAMBIA 'Principal' por el nombre de una tabla que sabes que existe ***
+        prueba_query = "SELECT TOP 1 * FROM dbo.Principal" 
+        resultado_prueba = ejecutar_select_query(prueba_query)
+        
+        if resultado_prueba['status'] == 'success':
+            # La prueba tuvo éxito, el problema ES la vista/nombre
+            return jsonify({
+                "status": "warning", 
+                "message": f"FALLO: La vista '{view_name}' no se pudo encontrar (Invalid object name). La conexión a la DB y la tabla 'Principal' es OK.",
+                "data": []
+            }), 500
+        else:
+            # La prueba falló, el problema es la conexión, el firewall o el login/password
+            return jsonify({
+                "status": "error", 
+                "message": "FALLO CRÍTICO: No se pudo consultar la vista NI la tabla de prueba 'Principal'. Revise credenciales/firewall.",
+                "detail": resultado_prueba['message']
+            }), 500
+
     if resultado['status'] == 'error':
         return jsonify(resultado), 500
+    
     return jsonify(resultado)
 
 # --- Rutas de API para Reportes Financieros completos (Stored Procedures) ---
+# ... (El resto de rutas permanece igual)
 
 @app.route('/api/balance-financiero', methods=['GET'])
 def balance_financiero_api():
