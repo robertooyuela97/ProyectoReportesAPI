@@ -59,8 +59,10 @@ def ejecutar_stored_procedure(sp_name, params=None):
         # 🔴 Manejo de error actualizado para Azure
         error_msg = str(ex)
         
-        if 'Login failed' in error_msg or 'firewall' in error_msg or 'Access is denied' in error_msg:
-             # Este es un error de CONEXIÓN/AUTENTICACIÓN
+        # Error específico de la tabla 'Resultados' que ya debería haber corregido
+        if 'Invalid object name' in error_msg:
+             message = "Error en el Stored Procedure: Una tabla o vista no existe (Revise la tabla 'Resultados')."
+        elif 'Login failed' in error_msg or 'firewall' in error_msg or 'Access is denied' in error_msg:
              message = "Error de CONEXIÓN: Revisar FIREWALL de Azure SQL o CREDENCIALES."
         else:
              # Este sigue siendo el error del driver si falla al inicializar pyodbc
@@ -101,7 +103,6 @@ def balance_comprobacion_api():
 # --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
-    # ⚠️ Asumiendo que usted ya ejecutó el script SQL que corrige el ISV al 15%
     resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
     if resultado['status'] == 'error':
         return jsonify(resultado), 500
