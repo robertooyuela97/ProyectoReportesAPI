@@ -56,11 +56,9 @@ def ejecutar_stored_procedure(sp_name, params=None):
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
-        # 🔴 Manejo de error base (el original que fallaba en conexión)
+        # 🔴 El mensaje de error indica un fallo de CREDENCIALES/FIREWALL
         error_msg = str(ex)
-        
-        # Usamos el mensaje de error original para volver al estado conocido
-        message = f"Error CRÍTICO de SQL (Probable DRIVER ODBC, FIREWALL o PS): Detalle: {error_msg}"
+        message = f"Error CRÍTICO de SQL (Login Failed/Firewall): Detalle: {error_msg}"
             
         print(f"CRITICAL ERROR: {message} -> Detalles: {error_msg}") 
         return {"status": "error", "message": message}
@@ -97,7 +95,6 @@ def balance_comprobacion_api():
 # --- Endpoint 3: Estado de Resultados ---
 @app.route('/api/estado-resultados', methods=['GET'])
 def estado_resultados_api():
-    # Asumiendo que usted ya corrigió la tabla 'Resultados' a 'ventas_07' en el PS
     resultado = ejecutar_stored_procedure("SP_Generar_EstadoResultados", params=[1])
     if resultado['status'] == 'error':
         return jsonify(resultado), 500
