@@ -56,7 +56,7 @@ def ejecutar_stored_procedure(sp_name, params=None):
         return {"status": "success", "reporte": sp_name, "data": reporte_data}
 
     except pyodbc.Error as ex:
-        # 🔴 El mensaje de error indica un fallo de CREDENCIALES/FIREWALL
+        # 🔴 Este error es el 'Login failed' (18456)
         error_msg = str(ex)
         message = f"Error CRÍTICO de SQL (Login Failed/Firewall): Detalle: {error_msg}"
             
