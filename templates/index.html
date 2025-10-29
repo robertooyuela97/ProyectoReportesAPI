@@ -7,6 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Librerías de Exportación -->
+    <script src="https://cdn.jsdelivr.net/npm/table-to-excel@1.0.1/dist/tableToExcel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         /* Estilo para la animación de carga */
         .spin {
@@ -31,8 +35,8 @@
                 <label for="empresa-select" class="text-sm font-medium">Empresa Actual:</label>
                 <!-- El JS poblará esta lista con las empresas y seleccionará una por defecto -->
                 <select id="empresa-select" class="p-2 rounded-lg text-gray-800 bg-white shadow-md focus:ring-2 focus:ring-yellow-300 transition duration-150">
-                     <!-- Opción inicial que será reemplazada por el JS -->
-                     <option value="" disabled selected>Cargando empresas...</option>
+                    <!-- Opción inicial que será reemplazada por el JS -->
+                    <option value="" disabled selected>Cargando empresas...</option>
                 </select>
             </div>
         </header>
@@ -51,9 +55,8 @@
                     <i class="ph ph-chart-line text-xl mr-2"></i> Estado de Resultados
                 </button>
                 
-                <!-- Usaremos V_BalanceSituacion de la vista que acabamos de crear -->
-                <button data-report="V_BalanceSituacion" data-title="Balance de Situación Financiera" class="report-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm text-center">
-                    <i class="ph ph-currency-circle-dollar text-xl mr-2"></i> Balance de Situación Financiera
+                <button data-report="view_Balance_Financiero" data-title="Balance Financiero" class="report-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm text-center">
+                    <i class="ph ph-currency-circle-dollar text-xl mr-2"></i> Balance Financiero
                 </button>
                 
                 <button data-report="view_Movimientos_Cuentas" data-title="Movimientos de Cuentas" class="report-btn bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.02] flex items-center justify-center text-sm text-center">
@@ -61,7 +64,19 @@
                 </button>
                 
             </div>
-            <!-- Los botones de Exportar a Excel y PDF han sido eliminados según su solicitud. -->
+            
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="excel-export-btn" disabled
+                        onclick="exportTableToExcel('report-table', document.getElementById('report-title').textContent)"
+                        class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="ph ph-file-xls text-xl mr-1"></i> Exportar a Excel
+                </button>
+                <button id="pdf-export-btn" disabled
+                        onclick="exportTableToPDF('report-table', document.getElementById('report-title').textContent)"
+                        class="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition duration-150 shadow-md flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="ph ph-file-pdf text-xl mr-1"></i> Exportar a PDF
+                </button>
+            </div>
         </section>
 
         <main class="p-4 sm:p-6">
@@ -80,7 +95,7 @@
                             <tr id="table-header"></tr>
                         </thead>
                         <tbody id="table-body" class="bg-white divide-y divide-gray-200">
-                            </tbody>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -101,7 +116,8 @@
     const tableHeader = document.getElementById('table-header');
     const tableBody = document.getElementById('table-body');
     const reportCard = document.getElementById('report-card');
-    // Las variables excelExportBtn y pdfExportBtn fueron eliminadas.
+    const excelExportBtn = document.getElementById('excel-export-btn');
+    const pdfExportBtn = document.getElementById('pdf-export-btn');
 
     // Estado del reporte activo para recargar al cambiar de empresa
     let activeReport = {
@@ -113,7 +129,7 @@
 
     /**
      * Muestra el spinner de carga y oculta el contenido del reporte.
-     * @param {boolean} isLoading 
+     * @param {boolean} isLoading
      */
     function toggleLoading(isLoading) {
         loadingMessage.classList.toggle('hidden', !isLoading);
@@ -121,12 +137,14 @@
         initialMessage.classList.add('hidden');
         reportCard.classList.toggle('opacity-50', isLoading);
         
-        // No hay botones de exportación que deshabilitar aquí.
+        // Deshabilitar botones de exportación mientras carga
+        excelExportBtn.disabled = isLoading;
+        pdfExportBtn.disabled = isLoading;
     }
 
     /**
      * Formatea un valor como moneda hondureña (HNL).
-     * @param {string|number} value 
+     * @param {string|number} value
      * @returns {string}
      */
     function formatCurrency(value) {
@@ -151,13 +169,14 @@
             tableHeader.innerHTML = '<th>No hay datos para esta empresa o vista.</th>';
             tableBody.innerHTML = '';
             reportTable.classList.remove('hidden');
-            // Deshabilitar lógica de exportación eliminada.
+            excelExportBtn.disabled = true;
+            pdfExportBtn.disabled = true;
             return;
         }
 
         const headers = Object.keys(reportData[0]);
         
-        tableHeader.innerHTML = headers.map(header => 
+        tableHeader.innerHTML = headers.map(header =>
             `<th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-100">${header.replace(/_/g, ' ')}</th>`
         ).join('');
 
@@ -166,8 +185,8 @@
             const rowValues = Object.values(rowObject);
             
             // Heurística simple para determinar si es una fila de total
-            const isTotalRow = rowValues.some(val => 
-                typeof val === 'string' && (val.toLowerCase().includes('total') || val.toLowerCase().includes('sum') || val.toLowerCase().includes('diferencia'))
+            const isTotalRow = rowValues.some(val =>
+                typeof val === 'string' && (val.toLowerCase().includes('total') || val.toLowerCase().includes('sum'))
             );
             
             const rowClass = isTotalRow ? 'bg-yellow-50 font-bold text-gray-900 border-t-2 border-yellow-300' : 'bg-white text-gray-800 hover:bg-gray-50';
@@ -184,9 +203,10 @@
             }).join('') + '</tr>';
         }).join('');
 
-        // 3. Mostrar la tabla
+        // 3. Mostrar la tabla y habilitar exportación
         reportTable.classList.remove('hidden');
-        // Habilitar lógica de exportación eliminada.
+        excelExportBtn.disabled = false;
+        pdfExportBtn.disabled = false;
     }
 
 
@@ -218,7 +238,7 @@
 
     /**
      * Llama al endpoint genérico de Flask para obtener el reporte de una vista SQL.
-     * @param {string} viewName - El nombre de la vista SQL a consultar (ej: V_BalanceSituacion).
+     * @param {string} viewName - El nombre de la vista SQL a consultar (ej: view_Balance_Comprobacion).
      * @param {number} companyId - El ID de la empresa para filtrar.
      */
     async function fetchReporte(viewName, companyId) {
@@ -251,7 +271,7 @@
 
     /**
      * Maneja el clic en los botones de reporte.
-     * @param {Event} event 
+     * @param {Event} event
      */
     const handleReportButtonClick = async (event) => {
         const reportBtn = event.currentTarget;
@@ -309,6 +329,53 @@
     };
 
 
+    // --- FUNCIONES DE EXPORTACIÓN (EXISTENTES) ---
+
+    // Exportar a Excel
+    window.exportTableToExcel = (tableId, filename = 'reporte') => {
+        const table = document.getElementById(tableId);
+        if (table.classList.contains('hidden') || table.tBodies[0].rows.length === 0) {
+                console.warn("No hay tabla visible o datos para exportar a Excel.");
+                return;
+        }
+        TableToExcel.convert(table, {
+            name: `${filename}.xlsx`,
+            sheet: {
+                name: 'Reporte'
+            }
+        });
+    };
+
+    // Exportar a PDF (Usando html2canvas y jspdf.autotable para mejor calidad)
+    window.exportTableToPDF = async (tableId, filename = 'reporte') => {
+        const table = document.getElementById(tableId);
+        if (table.classList.contains('hidden') || table.tBodies[0].rows.length === 0) {
+                console.warn("No hay tabla visible o datos para exportar a PDF.");
+                return;
+        }
+        
+        // La librería jspdf.umd.min.js expone jsPDF globalmente
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4'); // 'l' para horizontal, A4
+        
+        const finalFilename = filename.replace(/[^a-z0-9]/gi, '_');
+
+        doc.text(filename, 14, 15);
+        
+        // Se puede añadir la fecha y empresa aquí también si se quiere
+
+        doc.autoTable({
+            html: `#${tableId}`,
+            startY: 20, // Empieza la tabla después del título
+            theme: 'striped',
+            headStyles: { fillColor: [200, 50, 50] }, // Color para encabezados
+            styles: { fontSize: 8 },
+            margin: { top: 10, left: 10, right: 10, bottom: 10 }
+        });
+
+        doc.save(`${finalFilename}.pdf`);
+    };
+
     // --- INICIALIZACIÓN DE LA APP ---
     window.onload = () => {
         // 1. Cargar las empresas
@@ -343,13 +410,13 @@
                 // Si no había reporte activo, limpiar la vista
                 document.getElementById('report-table').classList.add('hidden');
                 document.getElementById('initial-message').classList.remove('hidden');
-                // Deshabilitar lógica de exportación eliminada.
+                excelExportBtn.disabled = true;
+                pdfExportBtn.disabled = true;
             }
         });
     };
 
     </script>
     
-
 </body>
 </html>
